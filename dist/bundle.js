@@ -4032,8 +4032,12 @@ var SectionDividerType;
 
 },{}],9:[function(require,module,exports){
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.readColor = exports.readSection = exports.readDataRLE = exports.readDataZip = exports.readPsd = exports.checkSignature = exports.skipBytes = exports.readAsciiString = exports.readUnicodeStringWithLength = exports.readUnicodeString = exports.readPascalString = exports.readSignature = exports.readBytes = exports.readFixedPointPath32 = exports.readFixedPoint32 = exports.readFloat64 = exports.readFloat32 = exports.readUint32 = exports.readInt32LE = exports.readInt32 = exports.readUint16 = exports.readInt16 = exports.peekUint8 = exports.readUint8 = exports.createReader = exports.supportedColorModes = void 0;
+var pako_1 = __importDefault(require("pako"));
 var helpers_1 = require("./helpers");
 var additionalInfo_1 = require("./additionalInfo");
 var imageResources_1 = require("./imageResources");
@@ -4565,21 +4569,19 @@ function readDataRaw(reader, pixelData, offset, width, height) {
         }
     }
 }
-function readDataZip(_reader, _pixelData, _width, _height, _step, _offsets) {
-    throw new Error('Zip reading not yet implemented');
-    /*
-    const size = width * height;
-    if (pixelData !== undefined) {
-        try {
-          const buffer = pako.inflate(new Uint8Array(pixelData!.data));
-            for (let i = 0, p = offset | 0; i < size; i++, p = (p + 4) | 0) {
-                data[p] = buffer[i];
-            }
-        } catch (err) {
-          console.log(err);
-        }
+function readDataZip(reader, pixelData, _width, _height, _step, offsets) {
+    if (pixelData === undefined) {
+        throw new Error('Handle this case');
     }
-    */
+    // TODO(jsr): this doesn't work if more than one offest is passed
+    if (offsets.length > 1) {
+        throw new Error('Zipping multiple channels is not supported');
+    }
+    var inf = new pako_1.default.Inflate();
+    do {
+        inf.push(readBytes(reader, 1));
+    } while (inf.err === 0 && inf.result === undefined);
+    pixelData.data = inf.result;
 }
 exports.readDataZip = readDataZip;
 function readDataRLE(reader, pixelData, _width, height, step, offsets) {
@@ -4690,7 +4692,7 @@ function readColor(reader) {
 exports.readColor = readColor;
 
 
-},{"./additionalInfo":1,"./helpers":5,"./imageResources":6}],10:[function(require,module,exports){
+},{"./additionalInfo":1,"./helpers":5,"./imageResources":6,"pako":16}],10:[function(require,module,exports){
 "use strict";
 var __assign = (this && this.__assign) || function () {
     __assign = Object.assign || function(t) {

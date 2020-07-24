@@ -1,4 +1,4 @@
-// import pako from 'pako';
+import pako from 'pako';
 import { Psd, Layer, ColorMode, SectionDividerType, LayerAdditionalInfo, ReadOptions, LayerMaskData, Color } from './psd';
 import {
 	resetImageData, offsetForChannel, decodeBitmap, PixelData, createCanvas, createImageData,
@@ -605,23 +605,24 @@ function readDataRaw(reader: PsdReader, pixelData: PixelData | undefined, offset
 }
 
 export function readDataZip(
-	_reader: PsdReader, _pixelData: PixelData | undefined, _width: number, _height: number, _step: number, _offsets: number[]
+	reader: PsdReader, pixelData: PixelData | undefined, _width: number, _height: number, _step: number, offsets: number[]
 ) {
-	throw new Error('Zip reading not yet implemented');
-	/*
-	const size = width * height;
-    if (pixelData !== undefined) {
-        try {
-          const buffer = pako.inflate(new Uint8Array(pixelData!.data));
-            for (let i = 0, p = offset | 0; i < size; i++, p = (p + 4) | 0) {
-                data[p] = buffer[i];
-            }
-        } catch (err) {
-          console.log(err);
-        }
-    }
-    */
+	if (pixelData === undefined) {
+		throw new Error('Handle this case');
+	}
 
+	// TODO(jsr): this doesn't work if more than one offest is passed
+	if (offsets.length > 1) {
+		throw new Error('Zipping multiple channels is not supported');
+	}
+
+	const inf = new pako.Inflate();
+
+	do {
+		inf.push(readBytes(reader, 1));
+	} while (inf.err === 0 && inf.result === undefined);
+
+	pixelData.data = inf.result as Uint8Array;
 }
 
 export function readDataRLE(

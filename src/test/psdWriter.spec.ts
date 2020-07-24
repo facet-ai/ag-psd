@@ -72,7 +72,11 @@ function testWritePsd(f: string, compression: Compression) {
 	fs.writeFileSync(path.join(resultsFilesPath, `${f}-compression${compression}.psd`), buffer);
 	// fs.writeFileSync(path.join(resultsFilesPath, `${f}.bin`), buffer);
 
-    // TODO: need to implement read in order to compare to RLE
+	const reader = createReader(buffer.buffer);
+	const result = readPsd(reader, { skipLayerImageData: true, logMissingFeatures: true, throwForMissingFeatures: true });
+	fs.writeFileSync(path.join(resultsFilesPath, `${f}-compression${compression}-composite.png`), result.canvas!.toBuffer());
+	//compareCanvases(psd.canvas, result.canvas, 'composite image');
+
 	// const expected = fs.readFileSync(path.join(basePath, 'expected.psd'));
 	// compareBuffers(buffer, expected, `ArrayBufferPsdWriter`);
 }
