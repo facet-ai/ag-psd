@@ -3307,41 +3307,24 @@ function writeDataRLE(buffer, _a, width, height, offsets) {
 }
 exports.writeDataRLE = writeDataRLE;
 /**
- * Creates a new Uint8Array based on two different ArrayBuffers
- *
- * @private
- * @param {Uint8Array} buffer1 The first buffer.
- * @param {Uint8Array} buffer2 The second buffer.
- * @return {Uint8Array} The new ArrayBuffer created out of the two.
- */
-var appendBuffer = function (buffer1, buffer2) {
-    var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
-    tmp.set(new Uint8Array(buffer1), 0);
-    tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
-    return tmp;
-};
-/**
  * As per the Adobe file format, zlib compress each channel separately
  */
-function writeDataZip(buffer, _a, width, height, offsets) {
-    var data = _a.data;
+function writeDataZip(buffer, pd, width, height, offsets) {
     if (!width || !height)
         return undefined;
+    var data = pd.data;
     var size = width * height;
-    var resultBuffer = new Uint8Array();
     // TODO(jsr): this doesn't work if more than one offest is passed
     if (offsets.length > 1) {
-        throw new Error("Zipping multiple channels is not supported");
+        throw new Error('Zipping multiple channels is not supported');
     }
     // NOTE this fixes the packing order, so if you passed offsets = [1,0,2,3] it will flip channels
-    offsets.forEach(function (offset, o) {
+    for (var plane = 0; plane < offsets.length; plane++) {
         for (var i = 0; i < size; i++) {
-            buffer[i + o * size] = data[i * 4 + offset];
+            buffer[i + plane * size] = data[i * 4 + offsets[plane]];
         }
-        var zippedBuffer = pako_1.default.deflate(buffer.slice(0, size));
-        resultBuffer = o === 0 ? zippedBuffer : appendBuffer(resultBuffer, zippedBuffer);
-    });
-    return resultBuffer;
+    }
+    return pako_1.default.deflate(buffer.slice(0, size * offsets.length));
 }
 exports.writeDataZip = writeDataZip;
 function writeDataZipPrediction(buffer, _a, width, height, offsets) {

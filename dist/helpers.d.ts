@@ -86,7 +86,7 @@ export declare function writeDataRLE(buffer: Uint8Array, { data }: PixelData, wi
 /**
  * As per the Adobe file format, zlib compress each channel separately
  */
-export declare function writeDataZip(buffer: Uint8Array, { data }: PixelData, width: number, height: number, offsets: number[]): Uint8Array | undefined;
+export declare function writeDataZip(buffer: Uint8Array, pd: PixelData, width: number, height: number, offsets: number[]): Uint8Array | undefined;
 export declare function writeDataZipPrediction(buffer: Uint8Array, { data }: PixelData, width: number, height: number, offsets: number[]): undefined;
 export declare let createCanvas: (width: number, height: number) => HTMLCanvasElement;
 export declare let createCanvasFromData: (data: Uint8Array) => HTMLCanvasElement;

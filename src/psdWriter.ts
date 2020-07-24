@@ -593,7 +593,7 @@ function getLayerChannels(
 
 	channels = channelIds.map(channel => {
 		const offset = offsetForChannel(channel);
-		let buffer = writeData(tempBuffer, data, width, height, [offset], compression)!;
+		const buffer = writeData(tempBuffer, data, width, height, [offset], compression)!;
 
 		return {
 			channelId: channel,
