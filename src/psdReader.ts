@@ -479,12 +479,18 @@ function readData(
 	reader: PsdReader, data: ImageData | undefined, compression: Compression, width: number, height: number,
 	offset: number
 ) {
-	if (compression === Compression.RawData) {
-		readDataRaw(reader, data, offset, width, height);
-	} else if (compression === Compression.RleCompressed) {
-		readDataRLE(reader, data, width, height, 4, [offset]);
-	} else {
-		throw new Error(`Compression type not supported: ${compression}`);
+	switch (compression) {
+		case Compression.RawData:
+			readDataRaw(reader, data, offset, width, height);
+			break;
+		case Compression.RleCompressed:
+			readDataRLE(reader, data, width, height, 4, [offset]);
+			break;
+		case Compression.ZipWithoutPrediction:
+			readDataZip(reader, data, width, height, 4, [offset]);
+			break;
+		default:
+			throw new Error(`Unsupported compression ${compression}`);
 	}
 }
 
@@ -605,7 +611,7 @@ function readDataRaw(reader: PsdReader, pixelData: PixelData | undefined, offset
 }
 
 export function readDataZip(
-	reader: PsdReader, pixelData: PixelData | undefined, _width: number, _height: number, _step: number, offsets: number[]
+	reader: PsdReader, pixelData: PixelData | undefined, width: number, height: number, step: number, offsets: number[]
 ) {
 	if (pixelData === undefined) {
 		throw new Error('Handle this case');
@@ -622,7 +628,19 @@ export function readDataZip(
 		inf.push(readBytes(reader, 1));
 	} while (inf.err === 0 && inf.result === undefined);
 
-	pixelData.data = inf.result as Uint8Array;
+
+	const size = width * height;
+	const imgData = inf.result as Uint8Array;
+
+	if (imgData.length !== size) {
+		throw new Error(`Read ${imgData.length} instead of ${size} bytes`);
+	}
+
+	for (let offset of offsets) {
+		for (let i = 0; i < size; i++) {
+			pixelData.data[i * step + offset] = imgData[i];
+		}
+	}
 }
 
 export function readDataRLE(

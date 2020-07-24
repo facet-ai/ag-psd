@@ -4449,14 +4449,18 @@ function readLayerChannelImageData(reader, psd, layer, channels, options) {
     }
 }
 function readData(reader, data, compression, width, height, offset) {
-    if (compression === 0 /* RawData */) {
-        readDataRaw(reader, data, offset, width, height);
-    }
-    else if (compression === 1 /* RleCompressed */) {
-        readDataRLE(reader, data, width, height, 4, [offset]);
-    }
-    else {
-        throw new Error("Compression type not supported: " + compression);
+    switch (compression) {
+        case 0 /* RawData */:
+            readDataRaw(reader, data, offset, width, height);
+            break;
+        case 1 /* RleCompressed */:
+            readDataRLE(reader, data, width, height, 4, [offset]);
+            break;
+        case 2 /* ZipWithoutPrediction */:
+            readDataZip(reader, data, width, height, 4, [offset]);
+            break;
+        default:
+            throw new Error("Unsupported compression " + compression);
     }
 }
 function readGlobalLayerMaskInfo(reader) {
@@ -4569,7 +4573,7 @@ function readDataRaw(reader, pixelData, offset, width, height) {
         }
     }
 }
-function readDataZip(reader, pixelData, _width, _height, _step, offsets) {
+function readDataZip(reader, pixelData, width, height, step, offsets) {
     if (pixelData === undefined) {
         throw new Error('Handle this case');
     }
@@ -4581,7 +4585,17 @@ function readDataZip(reader, pixelData, _width, _height, _step, offsets) {
     do {
         inf.push(readBytes(reader, 1));
     } while (inf.err === 0 && inf.result === undefined);
-    pixelData.data = inf.result;
+    var size = width * height;
+    var imgData = inf.result;
+    if (imgData.length !== size) {
+        throw new Error("Read " + imgData.length + " instead of " + size + " bytes");
+    }
+    for (var _i = 0, offsets_1 = offsets; _i < offsets_1.length; _i++) {
+        var offset = offsets_1[_i];
+        for (var i = 0; i < size; i++) {
+            pixelData.data[i * step + offset] = imgData[i];
+        }
+    }
 }
 exports.readDataZip = readDataZip;
 function readDataRLE(reader, pixelData, _width, height, step, offsets) {
