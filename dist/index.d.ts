@@ -2,7 +2,7 @@
 import { Psd, ReadOptions, WriteOptions } from './psd';
 import { PsdWriter } from './psdWriter';
 import { PsdReader } from './psdReader';
-export { initializeCanvas } from './helpers';
+export { Compression, initializeCanvas } from './helpers';
 export * from './psd';
 import { fromByteArray } from 'base64-js';
 export { PsdReader, PsdWriter };

@@ -1,13 +1,11 @@
 import { Psd, Layer, LayerAdditionalInfo, ColorMode, SectionDividerType, WriteOptions, Color } from './psd';
 import {
-	hasAlpha, createCanvas, writeDataRLE, PixelData, LayerChannelData, ChannelData,
+	hasAlpha, createCanvas, writeData, PixelData, LayerChannelData, ChannelData,
 	offsetForChannel, createImageData, fromBlendMode, ChannelID, Compression, clamp,
 	LayerMaskFlags, MaskParams, ColorSpace, Bounds
 } from './helpers';
 import { infoHandlers } from './additionalInfo';
 import { resourceHandlers } from './imageResources';
-
-const RAW_IMAGE_DATA = false;
 
 export interface PsdWriter {
 	offset: number;
@@ -235,14 +233,11 @@ export function writePsd(writer: PsdWriter, psd: Psd, options: WriteOptions = {}
 		height: psd.height,
 	};
 
-	writeUint16(writer, Compression.RleCompressed);
-
-	if (RAW_IMAGE_DATA && (psd as any).imageDataRaw) {
-		console.log('writing raw image data');
-		writeBytes(writer, (psd as any).imageDataRaw);
-	} else {
-		writeBytes(writer, writeDataRLE(tempBuffer, data, psd.width, psd.height, channels));
-	}
+	// TODO(jsr): reading fails for compressing multiple channels at once, so revert to RLE here
+	const compression = Compression.RleCompressed; // options.compression || Compression.RleCompressed;
+	// const compression = options.compression || Compression.RleCompressed;
+	writeUint16(writer, compression);
+	writeBytes(writer, writeData(tempBuffer, data, psd.width, psd.height, channels, compression));
 }
 
 function writeLayerInfo(tempBuffer: Uint8Array, writer: PsdWriter, psd: Psd, globalAlpha: boolean, options: WriteOptions) {
@@ -483,16 +478,19 @@ function getChannels(
 			imageData = mask.canvas.getContext('2d')!.getImageData(0, 0, width, height);
 		}
 
+		const compression = options.compression || Compression.RleCompressed;
+
 		if (width && height && imageData) {
 			right = left + width;
 			bottom = top + height;
 
-			const buffer = writeDataRLE(tempBuffer, imageData, width, height, [0])!;
+			const buffer = writeData(tempBuffer, imageData, width, height, [0], compression)!;
+
 			layerData.mask = { top, left, right, bottom };
 			layerData.channels.push({
 				channelId: ChannelID.UserMask,
-				compression: Compression.RleCompressed,
-				buffer: buffer,
+				compression,
+				buffer,
 				length: 2 + buffer.length,
 			});
 		} else {
@@ -591,19 +589,16 @@ function getLayerChannels(
 		channelIds.unshift(ChannelID.Transparency);
 	}
 
+	const compression = options.compression || Compression.RleCompressed;
+
 	channels = channelIds.map(channel => {
 		const offset = offsetForChannel(channel);
-		let buffer = writeDataRLE(tempBuffer, data, width, height, [offset])!;
-
-		if (RAW_IMAGE_DATA && (layer as any).imageDataRaw) {
-			console.log('written raw layer image data');
-			buffer = (layer as any).imageDataRaw[channel];
-		}
+		const buffer = writeData(tempBuffer, data, width, height, [offset], compression)!;
 
 		return {
 			channelId: channel,
-			compression: Compression.RleCompressed,
-			buffer: buffer,
+			compression,
+			buffer,
 			length: 2 + buffer.length,
 		};
 	});

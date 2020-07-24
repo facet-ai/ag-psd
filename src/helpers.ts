@@ -1,3 +1,4 @@
+import pako from 'pako';
 import { fromByteArray } from 'base64-js';
 import { Layer, BlendMode, LayerColor } from './psd';
 
@@ -179,6 +180,20 @@ export function decodeBitmap(input: PixelArray, output: PixelArray, width: numbe
 	}
 }
 
+export function writeData(buffer: Uint8Array, data: PixelData, width: number, height: number, offsets: number[], compression?: Compression) {
+	switch (compression) {
+		case Compression.RawData:
+			return new Uint8Array(data.data);
+		case Compression.ZipWithoutPrediction:
+			return writeDataZip(buffer, data, width, height, offsets);
+		case 3:
+			return writeDataZipPrediction(buffer, data, width, height, offsets);
+		case 1:
+		default:
+			return writeDataRLE(buffer, data, width, height, offsets);
+	}
+}
+
 export function writeDataRaw(data: PixelData, offset: number, width: number, height: number) {
 	if (!width || !height)
 		return undefined;
@@ -284,6 +299,41 @@ export function writeDataRLE(buffer: Uint8Array, { data }: PixelData, width: num
 	}
 
 	return buffer.slice(0, o);
+}
+
+
+/**
+ * As per the Adobe file format, zlib compress each channel separately
+ */
+export function writeDataZip(buffer: Uint8Array, pd: PixelData, width: number, height: number, offsets: number[]) {
+	if (!width || !height)
+		return undefined;
+
+	const { data } = pd;
+	const size = width * height;
+
+	// TODO(jsr): this doesn't work if more than one offest is passed
+	if (offsets.length > 1) {
+		throw new Error('Zipping multiple channels is not supported');
+	}
+
+	// NOTE this fixes the packing order, so if you passed offsets = [1,0,2,3] it will flip channels
+	for (let plane = 0; plane < offsets.length; plane++) {
+		for (let i = 0; i < size; i++) {
+			buffer[i + plane * size] = data[i * 4 + offsets[plane]];
+		}
+	}
+
+	return pako.deflate(buffer.slice(0, size * offsets.length));
+}
+
+export function writeDataZipPrediction(buffer: Uint8Array, { data }: PixelData, width: number, height: number, offsets: number[]) {
+	if (!width || !height)
+		return undefined;
+
+	console.log(buffer, data, offsets);
+
+	throw new Error('Zip with prediction compression not yet implemented');
 }
 
 /* istanbul ignore next */
